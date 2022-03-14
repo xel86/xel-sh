@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang=en>
+    <head>
+        <title>xel.sh | code</title>
+        <meta charset="utf-8"/>
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+        <link rel='stylesheet' type='text/css' href='style.css'>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+
+<body>
+    <header><h1>Projects & Code</h1></header>
+    <nav>
+        <a href="index.html">home</a> • <a href="code.html">code</a> • <a href="blog.html">blog</a> • 
+        <a href="reviews.html">reviews</a> • <a href="me.html">me</a>
+    </nav>
+
+    <main class="code">
+        <div>
+            <h2>magnetfinder [rust]</h2>
+            <p>CLI program that scrapes magnet links from public trackers based on a provided search query.
+            Results are put into a pretty table and allows you to select which ones to download.</p>
+
+            <img src="imgs/magnetfinder.png" alt="magnetfinder">
+
+            <p>
+            <a href="code/magnetfinder.zip" download>source</a> • 
+            <a href="https://github.com/xel86/magnetfinder" target="_blank">github</a>
+            </p>
+        </div>
+
+        <div>
+            <h2>omnis [c++]</h2>
+            <p>[WIP] Network monitoring daemon that tracks network usage per application.
+            As opposed to similar programs tracking bandwidth per process or overall,
+            omnis tracks by application preferably since the creation of your system.
+            Data is stored in a local sqlite database which is used to calculate bandwidth stats for applications 
+            through either the cli program or the web-ui.</p>
+
+            <p>The web-ui, made in React, can view detailed graphs and statistics about bandwidth usage
+            for all, or selected, applications over any time period.</p>
+
+            <p>
+            <a href="code/omnis.zip" download>source</a> • 
+            <a href="https://github.com/xel86/omnis" target="_blank">github</a>
+            </p>
+        </div>
+
+        <div>
+            <h2>smallstat [c]</h2>
+            <p>Super small (but useful) program to track cpu usage for a process over the course of execution.
+            Tracks the current cpu usage, peak usage, and average usage over the period of tracking.</p>
+
+            <p>
+            <a href="code/smallstat.zip" download>source</a> •
+            <a href="https://github.com/xel86/smallstat" target="_blank">github</a>
+            </p>
+        </div>
+
+        <div>
+            <h2>BorrowBot [rust]</h2>
+            <p>As a rite of passage for me to learn a language, I make a twitch chat bot.
+            They get progressivly better each time :)</p>
+            <p>This is the latest iteration; super fast, commands, chat logging, and a permissions system. 
+            The other two twitch bots were written in c# and python but are too ugly to justify a section...</p>
+
+            <p>
+            <a href="code/borrowbot.zip" download>source</a> •
+            <a href="https://github.com/xel86/borrowbot" target="_blank">github</a>
+            </p>
+        </div>
+
+        <div>
+            <h2>Open Source Contributions</h2>
+            <p>I contribute to a few open source projects on github, really just as often as I find opportunities too.</p>
+            <ul>
+                <li>qbittorrent-cli 
+                [<a href="https://github.com/ludviglundgren/qbittorrent-cli" target="_blank">github</a>] 
+                added qbt list & remove commands, and added functionality to other commands.</li>
+
+                <li>chatterino2 
+                [<a href="https://github.com/Chatterino/chatterino2" target="_blank">github</a>] 
+                multiple bug fixes</li>
+
+                <li>SerenityOS
+                [<a href="https://github.com/SerenityOS/serenity" target="_blank">github</a>]
+                added some functionality to the dd command</li>
+            </ul>
+        </div>
+
+    </main>
+</body>
+
+</html>
