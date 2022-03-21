@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang=en>
+    <head>
+        <title>xel.sh | ZFS</title>
+        <meta charset="utf-8"/>
+        <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" type="text/css" href="../style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+
+<body>
+    <header><h1>Creating an encrypted ZFS pool</h1></header>
+    <nav>
+        <a href="../index.html">home</a> • <a href="../code.html">code</a> • <a href="../blog.html">blog</a> • 
+        <a href="../reviews.html">reviews</a> • <a href="../me.html">me</a>
+    </nav>
+
+    <main>
+        <div class="blog-post-main">
+        <h2>ZFS Basics & Terminology</h2>
+        <h3 style="padding-top:0px;">Zpools</h3>
+        <p>A zfs pool (zpool for short) is the top level virtual device (essentially a partition) that 
+        usually contains the entire space of a collection of drives. For all of the information 
+        in this blog post, I will be assuming you are using the entire space of the drives in your zpools. 
+        A zpool often combines multiple drives of the same size into a 
+        single logical partition on your system. </p>
+
+        <h3>Datasets & Properties</h3>
+        <p>Datasets are partitions that appear as normal folders inside of a zpool. 
+        Most zfs operations can be performed on datasets rather than pools, allowing for more
+        selective customization and easier managment of data. You can have datasets inside
+        of datasets.</p>
+
+        <p>Datasets and pools have properties, which are options that control behavior; 
+        such as encryption, file attributes, compression, etc. A lot of the most powerful 
+        properties are applied on datasets rather than pools, which gives even more 
+        reason to make many specific datasets for unique sets of data.</p>
+
+        <p>Datasets have a system of <i>inherited</i> properties, meaning that 
+        any dataset created underneath another dataset will inherit all of the 
+        properties of its parent dataset.</p>
+
+        <p>You can get your current dataset's properties (including defaults) with this command:</p>
+        <code>sudo zfs get all pool/dataset</code> 
+        <p>replacing pool and dataset with the name of your pool and the name of your dataset.</p>
+
+        <p>More information datasets and their properties can be found 
+        <a href="https://docs.oracle.com/cd/E19253-01/819-5461/6n7ht6r3f/index.html" target="_blank">here</a>
+        </p>
+
+        <h3>Layouts</h3>
+        <p>Zpools can be layed out in a variety of different ways; if you are setting up
+        ZFS on a single disk than you can only choose a striped configuration.</p>
+
+        <p>Most of the layouts revolve around the core concept of data redundency which
+        is not exclusive to ZFS. Essentially you sacrifice a ratio of your total drive
+        space in your collection of drives to allow full data recovery in the event of
+        a hard drive failure. There are three core layouts for zfs pools.</p>
+
+        <div class="sectioned-list">
+            <h4>Striped</h4>
+            <p>If you are only using a single disk in your zpool, this is your only option.
+            It provides no redundency but does not sacrifice any of your total drive space.
+            A zpool with multiple drives in a striped layout will split all writes across each
+            drive evenly, resulting in potential performance benefits but is <i>incredibly risky</i>.
+            Each drive you add to a striped zpool increases the chances of complete data
+            loss since a single drive failure will corrupt all data across all the disks in the pool. </p>
+
+            <h4>Mirrored</h4>
+            <p>This is the simplest layout, it provides redundency up to n/2 drive failures
+            (with n being the total number of disks in the zpool) while also sacrificing half
+            of the total drive space. Simply put, everytime you write to the pool you
+            simultaneously write all of that data onto all the disks in the pool, 
+            creating a perfect mirror.</p>
+
+            <h4>Raidz (raidz1)</h4>
+            <p>This is similiar to RAID-5. It provides redundency for 1 drive while sacrificing
+            one drive worth of space. For example if you have three 10TB drives in a raidz zpool,
+            you will have 20TB of usable space and can recover from a single drive failure.
+            The concept behind raidz and raid-5 is essentially striping the disks but also
+            keeping track of <a href="https://en.wikipedia.org/wiki/Parity_bit">parity bits</a> 
+            stored on a single disk.</p>
+        </div>
+
+        <h2 style="padding-top: 50px;">Creating a mirrored zpool with encrypted datasets</h2>
+        <p>Now that you know the basics of ZFS we can begin creating our first pool.</p>
+
+        <p>Most (if not all) zfs commands require root permissions, so either use sudo or a root 
+        elevated shell. I will include <code>sudo</code> in the commands in this guide 
+        since the majority of readers will probably be using it instead of a root shell.</p>
+
+        <h3>Creating the pool</h3>
+        <p>To create the pool you first have to get the ids of the disks you are planning to use.</p>
+        <code>sudo fdisk -l</code>
+        <p>grab the name of the disks, such as /dev/sda, /dev/sdf, etc. then run: </p>
+        <code>ls -lah /dev/disk/by-id/</code>
+
+        <p>Get the ids for each disk you want, the id is the value before the "->"</p>
+
+        <code>wwn-0x5002538e00117bb6 -> ../../sdc</code>
+
+        <p>Once you have collected all of the ids of the disks you want to use, put them in a command
+        like so, replacing "disk1", "disk2", etc. with the ids of your disks</p>
+
+        <code>sudo zfs create -f -o ashift=12 -m /mnt/dir poolname mirror disk1 disk2</code>
+
+        <p>-f will force using vdevs</p> 
+
+        <p>-o ashift=12 will force 4096 byte sectors
+        (this is to prevent an issue where adding new drives to a pool of the correct size may not
+        work since the new drive's sector sizes aren't exactly the same)</p> 
+
+        <p>-m will set the mountpoint for the pool (the path where the directory representing 
+        your pool will live), followed by the name of the pool you want to use.</p>
+
+        <h3>Creating your encrypted datasets</h3>
+        <p>It's easiest to have one top-level dataset where you set your core properties 
+        you want for all of your sub-datasets to inherit, in this guide those will be 
+        encryption, compression, and relatime.</p>
+
+        <p>First we have to generate a "wrapping key" to decrypt the actual encryption keys to the dataset.
+        We can easily accomplish this by using dd, first make a directory /etc/keys then run:</p>
+
+        <code>sudo dd if=/dev/random of=/etc/keys/zfs.key bs=512 count=1</code>
+
+        <p>Then run the command to create the dataset using our newly created key. Replace "pool" and
+        "tank" with your pool name and your desired dataset name respectively.</p>
+
+        <p>Encryption will encrypt the dataset, relatime will remove the access time attribute from files
+        and leave only creation time and access time to save writes, 
+        and compression will use zstd lossless compression to compress files that zfs 
+        determines are worth compressing, usually small files like text files.</p>
+
+        <code>sudo zfs create pool/tank -o encryption=on -o relatime=on -o compression=zstd 
+            -o keylocation=file:///etc/keys/zfs.key -o keyformat=passphrase</code>
+
+        <p>From here on out you can create as many sub-datasets as you want, and they will 
+        all inherit the encryption, relatime, and compression properties. 
+        We can create a sub-dataset named "media" like so:</p>
+
+        <code>sudo zfs create pool/tank/media</code>
+
+        <p>These datasets will only be accessable by root at first, so you will probably 
+        want to make your user own them. Go inside the directory of your pool's mountpoint and run
+        the below command replacing "username" with the name of the user you want to use the zpool.</p>
+
+        <code>sudo chown -R username tank</code>
+
+        <h3>Testing your keys & mounting</h3>
+
+        <p>To ensure you properly setup your keys you can use the -n flag for dry-run.</p>
+
+        <code>sudo zfs load-key -n -L file:///etc/keys/zfs.key pool/tank</code> 
+
+        <p>If the key was successfully verified you can try and reboot and attempt to decrypt it.
+        Upon boot the encrypted datasets will most likely not automatically mount, so you should run
+        these two commands to decrypt and mount your datasets.</p>
+
+        <code>sudo zfs load-key -L file:///etc/keys/zfs.key pool/tank && sudo zfs mount -a</code>
+
+        <p>the -a flag on mount will mount all zfs datasets, you 
+        can specify specific ones instead if you wish.</p>
+
+        <p>You can either manually type this on each startup, or create a script to do it for you.</p>
+
+        <h2 style="padding-top: 50px;">Creating other types of pools</h2>
+
+        <p>Since you now know the general process of creating pools and datasets, using different
+        layout types should be fairly straightforward. The only thing needing to be changed is the 
+        zfs create command from earlier to create the intial pool.</p>
+
+        <p>Striped is the default, so you don't have to add any specifier and just list the disk</p>
+        <code>sudo zfs create ... pool disk1 disk2</code>
+
+        <p>Raidz will have options "raidz", "raidz2", and "raidz3" for raidz1, 2, and 3 respectively.</p>
+        <code>sudo zfs create ... pool raidz disk1 disk2</code>
+
+        </div>
+    </main>
+</body>
+
+</html>
