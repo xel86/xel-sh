@@ -126,8 +126,8 @@
         <p>Then run the command to create the dataset using our newly created key. Replace "pool" and
         "tank" with your pool name and your desired dataset name respectively.</p>
 
-        <p>Encryption will encrypt the dataset, relatime will remove the access time attribute from files
-        and leave only creation time and access time to save writes, 
+        <p>Encryption will encrypt the dataset, relatime will make the 
+        access time attribute not be updated as often for files which will save on writes, 
         and compression will use zstd lossless compression to compress files that zfs 
         determines are worth compressing, usually small files like text files.</p>
 
@@ -167,13 +167,13 @@
 
         <p>Since you now know the general process of creating pools and datasets, using different
         layout types should be fairly straightforward. The only thing needing to be changed is the 
-        zfs create command from earlier to create the intial pool.</p>
+        zfs create command from earlier to create the initial pool.</p>
 
-        <p>Striped is the default, so you don't have to add any specifier and just list the disk</p>
+        <p>Striped is the default, so you don't have to add any specifier and just list the disks</p>
         <code>sudo zfs create ... pool disk1 disk2</code>
 
         <p>Raidz will have options "raidz", "raidz2", and "raidz3" for raidz1, 2, and 3 respectively.</p>
-        <code>sudo zfs create ... pool raidz disk1 disk2</code>
+        <code>sudo zfs create ... pool raidz disk1 disk2 disk3</code>
 
         </div>
     </main>
