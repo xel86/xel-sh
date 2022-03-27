@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang=en>
+    <head>
+        <title>xel.sh | Mullvad & SSH</title>
+        <meta charset="utf-8"/>
+        <link rel="shortcut icon" href="../favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" type="text/css" href="../style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+    </head>
+
+<body>
+    <header><h1>SSH & Mullvad VPN</h1></header>
+    <nav>
+        <a href="../index.html">home</a> • <a href="../code.html">code</a> • <a href="../blog.html">blog</a> • 
+        <a href="../reviews.html">reviews</a> • <a href="../me.html">me</a>
+    </nav>
+
+    <main>
+        <div class="blog-post-main">
+        <h2>Context</h2>
+
+        <p>If your remote server runs mullvad vpn, it can prevent ssh connections while 
+        using the normal public ip address for the server. To make it 
+        work without this guide would require you to forward a mullvad port and track
+        down the new ip for the vpn tunnel each time.</p>
+
+        <p>Instead, we can create a useful exception with mullvad so that incoming
+        ssh connections using the normal public ip will be accepted and routed normally.
+        The concept used to create the exception can probably be applied to other VPNs
+        with similar functionality, but that will be something for you to tinker with.
+        For context, my server is running Debian 11 with systemd.</p>
+
+        <h2 style="padding-top: 50px;">sshd.service</h2>
+        <p>The first thing to do is to use the <code>mullvad-exclude</code> command
+        that comes with the mullvad linux CLI program when the sshd service is 
+        started.</p>
+
+        <p>Modify the sshd service file in <code>/etc/systemd/system/sshd.service</code></p>
+
+        <p>Change ExecStart to be <code>ExecStart=/usr/bin/mullvad-exclude /usr/sbin/sshd -D $SSHD_OPTS</code></p>
+
+        <p>Finally, add an additional line <code>RestartSec=20</code></p>
+
+        <p>My <code>sshd.service</code> looks like this:</p>
+
+        <div class="code-block">
+[Unit]
+Description=OpenBSD Secure Shell server
+Documentation=man:sshd(8) man:sshd_config(5)
+After=network.target auditd.service
+ConditionPathExists=!/etc/ssh/sshd_not_to_be_run
+
+[Service]
+EnvironmentFile=-/etc/default/ssh
+ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/usr/bin/mullvad-exclude /usr/sbin/sshd -D $SSHD_OPTS
+ExecReload=/usr/sbin/sshd -t
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=20
+RestartPreventExitStatus=255
+Type=notify
+RuntimeDirectory=sshd
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target
+Alias=sshd.service
+        </div>
+
+        <p>This will make it so on system boot the sshd service will be routed normally
+        and excluded from the mullvad vpn tunnel. <code>RestartSec</code> is necessary
+        because its likely that the sshd service will be loaded before mullvad's 
+        service, so we give it a little bit of buffer time to try again.</p>
+
+        </div>
+
+        <h2 style="padding-top: 50px;">nftables</h2>
+        <p> Unfortunatly we need to do one more step, which I am fairly sure is not
+        intended by the mullvad devs (mullvad-exclude should be enough). We have 
+        to make an explicit nftable rule to allow incoming connections for the 
+        ssh port you use. By default this will be 22, but if you use a different 
+        port, which I recommend for security purposes, use that port number instead.</p>
+
+        <p>Create a file for storing the rule; 
+        I will create one called <code>excludeTraffic.rules</code></p>
+
+        <div class="code-block">
+table inet excludeTraffic {
+   chain allowIncoming {
+     type filter hook input priority -100; policy accept;
+     udp dport PORTNUMBER ct mark set 0x00000f41;
+     tcp dport PORTNUMBER ct mark set 0x00000f41;
+   }
+}
+        </div>
+
+        <p>Replacing <code>PORTNUMBER</code> with the port you use for SSH</p>
+
+        <p>You will have to add these rules to your nftables upon EACH RESTART,
+        you can do so by executing this command:</p>
+        <code>sudo nft -f excludeTraffic.rules</code></p>
+
+        <p>It is important to run this command BEFORE you connect to mullvad for the 
+        first time, or else you could potentially be kicked out of your ssh connection.
+        I recommend adding this to a startup script. There may be a way to
+        make nftables rules persist after restarts but I haven't found it. Let me
+        know if you do!</p>
+
+        <h2 style="padding-top: 50px">References</h2>
+        <p>This solution was created based off of an email chain I had with 
+        someone from mullvad customer support, and it seemed like there weren't
+        any other solutions available.</p>
+
+        <p>The nftables idea came from this 
+        <a 
+        href="https://github.com/mullvad/mullvadvpn-app/issues/2097#issuecomment-799485645"
+        target="_blank">github issue post</a>.</p>
+    </main>
+</body>

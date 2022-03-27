@@ -30,6 +30,16 @@ code {
     border-radius: 5px;
 }
 
+div.code-block {
+    color: lime;
+    font-family: monospace;
+    white-space: pre;
+    background-color: #1d1d1d;
+    display: inline-block;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+
 
 main {
     padding-top: 50px;
