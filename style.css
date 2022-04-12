@@ -90,3 +90,11 @@ div.sectioned-list {
 .blog-post-main h3 {
     padding-top: 30px;
 }
+
+.book-review-main h3 {
+    padding-top: 30px;
+}
+
+.book-review-main p {
+    line-height: 1.5;
+}
